@@ -1,21 +1,24 @@
 #!/bin/bash
 
 # Check if Apache2 is installed
-if ! type "apache2" > /dev/null; then
+if ! which apache2 > /dev/null; then
   echo "Apache2 is not installed. Please install Apache2 and try again."
   exit 1
 fi
 
 # Check if OpenSSL is installed
-if ! type "openssl" > /dev/null; then
+if ! which openssl > /dev/null; then
   echo "OpenSSL is not installed. Installing OpenSSL..."
   apt-get update
   apt-get install -y openssl
 fi
 
+# Enable the SSL module for Apache
+a2enmod ssl
+
 # Set the domain name and document root
-read -p "Enter the domain name for the virtual host: " domain
-read -p "Enter the document root for the virtual host: " doc_root
+read -r -p "Enter the domain name for the virtual host: " domain
+read -r -p "Enter the document root for the virtual host: " doc_root
 
 # Create the virtual host configuration file
 echo "Creating virtual host configuration file..."
@@ -37,7 +40,9 @@ a2dissite 000-default.conf
 
 # Generate a self-signed SSL certificate
 echo "Generating self-signed SSL certificate..."
-openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/$domain.key -out /etc/ssl/certs/$domain.crt
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout /etc/ssl/private/$domain.key -out /etc/ssl/certs/$domain.crt \
+  -subj "/CN=$domain"
 
 # Create the SSL virtual host configuration file
 echo "Creating SSL virtual host configuration file..."
@@ -61,6 +66,6 @@ EOL
 echo "Enabling SSL virtual host..."
 a2ensite $domain-ssl.conf
 
-# Restart Apache2 to apply the changes
-echo "Restarting Apache2..."
-systemctl restart apache2
+# Reload Apache2 to apply the changes
+echo "Reloading Apache2..."
+systemctl reload apache2
